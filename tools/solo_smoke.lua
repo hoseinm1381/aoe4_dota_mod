@@ -59,7 +59,7 @@ function EGroup_GetEntityAt(group, index) return assert(group[index]) end
 function Squad_CreateAndSpawnToward(blueprint, player, count, position)
 	assert(count == 1)
 	local squad = {id = #squads + 1, blueprint = blueprint, owner = player,
-		position = position, health = 1, valid = true, alive = true}
+		position = position, health = 1, valid = true, alive = true, selectable = true}
 	squad.entity = {squad = squad}
 	squads[squad.id] = squad
 	return squad
@@ -78,11 +78,17 @@ end
 function Entity_GetSquad(entity) return entity.squad end
 function Entity_Create(blueprint, player, position, snap)
 	assert(snap)
-	local entity = {id = #buildings + 1, blueprint = blueprint, owner = player, position = position}
+	local entity = {id = #buildings + 1, blueprint = blueprint, owner = player, position = position,
+		progress = 0, health = 1, maxHealth = blueprint == "tower" and 1100 or 1600, selectable = true}
 	buildings[entity.id] = entity
 	return entity
 end
 function Entity_Spawn(entity) entity.alive = true end
+function Entity_ForceConstruct(entity) assert(entity.alive); entity.progress = 1 end
+function Entity_SetHealth(entity, percent) assert(entity.progress == 1); entity.health = entity.maxHealth * percent end
+function Entity_GetBuildingProgress(entity) return entity.progress end
+function Entity_GetHealth(entity) return entity.health end
+function Entity_GetHealthMax(entity) return entity.maxHealth end
 function Entity_GetID(entity) return entity.id end
 function Entity_IsValid(id) return buildings[id] ~= nil end
 function Entity_IsAlive(entity) return entity.alive end
@@ -175,16 +181,23 @@ LaneWarsSolo_Start()
 LaneWarsSolo_Start()
 assert(clearedStarts == 4 and #squads == 0 and #buildings == 4)
 assert(focus.x == -54 and focus.z == 0)
+for _, building in ipairs(buildings) do
+	assert(building.progress == 1 and building.health == building.maxHealth)
+	assert(building.selectable == (building.owner == 2))
+end
 network(2, "captain")
 assert(#squads == 0)
 click("Draft Shield Captain")
 local hero, bot = squads[1], squads[2]
-assert(hero.blueprint == "captain" and bot.blueprint == "unit_archer_2_eng" and bot.destination)
+assert(hero.blueprint == "captain" and bot.blueprint == "unit_archer_2_eng" and bot.destination and bot.selectable)
 assert(buildings[2].cap == 1 and buildings[4].cap == 1)
 
 tick(4)
 assert(#squads == 10 and saw("LANE_WARS_FIRST_WAVE", 1) and saw("LANE_WARS_FIRST_WAVE", 2))
-for index = 3, 10 do assert(squads[index].selectable == false and squads[index].destination) end
+for index = 3, 10 do
+	local creep = squads[index]
+	assert(creep.selectable == (creep.owner == 2) and creep.destination)
+end
 local baselineGold = gold[1]
 local lethal, towerKill, creepKill, missingDeath = squads[7], squads[8], squads[9], squads[10]
 local home = hero.position

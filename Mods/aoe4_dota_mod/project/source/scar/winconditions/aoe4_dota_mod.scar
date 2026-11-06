@@ -62,9 +62,14 @@ local function SpawnSquad(blueprint, player, position, destination)
 	return {handle = squad, id = Squad_GetID(squad), position = position}
 end
 
-local function SpawnBuilding(blueprint, player, position)
+local function SpawnBuilding(blueprint, player, position, kind)
 	local entity = Entity_Create(blueprint, player, position, true)
 	Entity_Spawn(entity)
+	Entity_ForceConstruct(entity)
+	Entity_SetHealth(entity, 1)
+	print(string.format("LANE_WARS_BUILDING_READY slot=%d kind=%s progress=%.2f hp=%.0f/%.0f",
+		Player_GetSlotIndex(player), kind, Entity_GetBuildingProgress(entity),
+		Entity_GetHealth(entity), Entity_GetHealthMax(entity)))
 	return {handle = entity, id = Entity_GetID(entity)}
 end
 
@@ -90,7 +95,6 @@ local function SpawnHero(side, opponent)
 		Modifier_ApplyToEntity(match.boots, Squad_GetFirstEntity(side.hero.handle), 0)
 	end
 	if not side.human then
-		Misc_SetSquadSelectable(side.hero.handle, false)
 		Order(side.hero, Site(opponent.layout.stronghold))
 	end
 	print("LANE_WARS_HERO_SPAWN", Player_GetSlotIndex(side.player), side.pick, side.hero.id)
@@ -98,11 +102,13 @@ end
 
 local function SpawnBases()
 	for _, side in ipairs(match.sides) do
-		side.tower = SpawnBuilding(blueprints.tower, side.player, Site(side.layout.tower))
-		side.stronghold = SpawnBuilding(blueprints.stronghold, side.player, Site(side.layout.stronghold))
+		side.tower = SpawnBuilding(blueprints.tower, side.player, Site(side.layout.tower), "tower")
+		side.stronghold = SpawnBuilding(blueprints.stronghold, side.player, Site(side.layout.stronghold), "stronghold")
 		Entity_SetInvulnerableMinCap(side.stronghold.handle, 1, -1)
-		Misc_SetEntitySelectable(side.tower.handle, false)
-		Misc_SetEntitySelectable(side.stronghold.handle, false)
+		if side.human then
+			Misc_SetEntitySelectable(side.tower.handle, false)
+			Misc_SetEntitySelectable(side.stronghold.handle, false)
+		end
 	end
 end
 
@@ -134,7 +140,9 @@ local function SpawnWave(side, opponent)
 		local position = Ground(side.layout.wave[1], side.layout.wave[2] + offset)
 		local destination = Ground(opponent.layout.stronghold[1], offset)
 		local unit = SpawnSquad(blueprint, side.player, position, destination)
-		Misc_SetSquadSelectable(unit.handle, false)
+		if side.human then
+			Misc_SetSquadSelectable(unit.handle, false)
+		end
 		match.creeps[unit.id] = unit
 		Rule_AddSquadEvent(LaneWarsSolo_OnCreepKilled, unit.handle, GE_SquadKilled, {id = unit.id})
 		Order(unit, destination)
