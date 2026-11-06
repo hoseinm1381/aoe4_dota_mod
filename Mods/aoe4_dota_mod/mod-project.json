@@ -76,8 +76,8 @@
   "mod_id": "dfc349f3-9dea-41d0-abff-b860c173458e",
   "name": "aoe4_dota_mod",
   "release": {
-    "summary": "Solo fixture with death-event attribution and match diagnostics.",
-    "version": "0.1.0-solo.4"
+    "summary": "Use authored map sites and reveal the opening base during draft.",
+    "version": "0.1.0-solo.5"
   },
   "runtime_modules": {
     "files": {

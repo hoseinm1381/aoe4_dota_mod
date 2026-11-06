@@ -3,3 +3,4 @@ LaneWarsProvingGround = {
 	west = { hero = {-54, 0}, stronghold = {-64, 0}, tower = {-31, 0}, wave = {-48, 0} },
 	east = { hero = {54, 0}, stronghold = {64, 0}, tower = {31, 0}, wave = {48, 0} },
 }
+print("LANE_WARS_MAP_READY proving_ground")

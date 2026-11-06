@@ -4,7 +4,6 @@ import("command.scar")
 import("network.scar")
 import("gameplay/event_cues.scar")
 import("aoe4_dota_mod/blueprints.scar")
-import("gameplay/proving_ground.scar")
 
 Core_RegisterModule("LaneWarsSolo")
 
@@ -22,6 +21,41 @@ end
 
 local function Site(coordinates)
 	return Ground(coordinates[1], coordinates[2])
+end
+
+local function ResolveLayout()
+	local map = LaneWarsProvingGround
+	if map == nil then
+		print("LANE_WARS_SETUP_ERROR Proving Ground map script was not loaded")
+		return
+	end
+	local function InBounds(offsetX, offsetZ)
+		for _, side in ipairs({map.west, map.east}) do
+			for _, point in pairs(side) do
+				if not World_PosInBounds(World_Pos(point[1] + offsetX, 0, point[2] + offsetZ)) then
+					return false
+				end
+			end
+		end
+		return true
+	end
+	local offsetX, offsetZ = 0, 0
+	if not InBounds(offsetX, offsetZ) then
+		offsetX, offsetZ = World_GetWidth() / 2, World_GetLength() / 2
+		if not InBounds(offsetX, offsetZ) then
+			print("LANE_WARS_SETUP_ERROR authored lane lies outside the playable world", offsetX * 2, offsetZ * 2)
+			return
+		end
+	end
+	local function Offset(side)
+		local result = {}
+		for key, point in pairs(side) do
+			result[key] = {point[1] + offsetX, point[2] + offsetZ}
+		end
+		return result
+	end
+	print("LANE_WARS_LAYOUT_READY", offsetX, offsetZ)
+	return Offset(map.west), Offset(map.east)
 end
 
 local function SpawnSquad(blueprint, player, position, destination)
@@ -63,17 +97,21 @@ local function SpawnHero(side, opponent)
 	print("LANE_WARS_HERO_SPAWN", Player_GetSlotIndex(side.player), side.pick, side.hero.id)
 end
 
-local function StartBattle(now)
-	match.phase = "battle"
-	match.nextWave = now + 4
-	match.nextIncome = now + 1
-	for index, side in ipairs(match.sides) do
+local function SpawnBases()
+	for _, side in ipairs(match.sides) do
 		side.tower = SpawnBuilding(blueprints.tower, side.player, Site(side.layout.tower))
 		side.stronghold = SpawnBuilding(blueprints.stronghold, side.player, Site(side.layout.stronghold))
 		Entity_SetInvulnerableMinCap(side.stronghold.handle, 1, -1)
 		Misc_SetEntitySelectable(side.tower.handle, false)
 		Misc_SetEntitySelectable(side.stronghold.handle, false)
-		Player_SetResource(side.player, RT_Gold, 0)
+	end
+end
+
+local function StartBattle(now)
+	match.phase = "battle"
+	match.nextWave = now + 4
+	match.nextIncome = now + 1
+	for index, side in ipairs(match.sides) do
 		SpawnHero(side, match.sides[3 - index])
 	end
 	print("LANE_WARS_BATTLE_STARTED")
@@ -362,26 +400,27 @@ function LaneWarsSolo_Start()
 	if match ~= nil or blueprints == nil then
 		return
 	end
+	local west, east = ResolveLayout()
+	if west == nil then
+		return
+	end
 	local human, opponent
 	for _, player in pairs(PLAYERS) do
-		local start = Player_GetStartingPosition(player.id)
-		if math.abs(math.abs(start.x) - 54) > 2 or math.abs(start.z) > 2 then
-			print("LANE_WARS_SETUP_ERROR select the Proving Ground crafted map")
-			return
-		end
-		local isHuman = Player_IsHuman(player.id)
-		local side = {player = player.id, human = isHuman, xp = 0, level = 1, waves = {},
-			layout = start.x < 0 and LaneWarsProvingGround.west or LaneWarsProvingGround.east}
-		if isHuman and human == nil then
-			human = side
-		elseif not isHuman and opponent == nil then
-			opponent = side
-		else
-			print("LANE_WARS_SETUP_ERROR expected exactly one human and one AI")
-			return
+		if Player_IsAlive(player.id) then
+			local isHuman = Player_IsHuman(player.id)
+			local side = {player = player.id, human = isHuman, xp = 0, level = 1, waves = {},
+				layout = isHuman and west or east}
+			if isHuman and human == nil then
+				human = side
+			elseif not isHuman and opponent == nil then
+				opponent = side
+			else
+				print("LANE_WARS_SETUP_ERROR expected exactly one human and one AI")
+				return
+			end
 		end
 	end
-	if human == nil or opponent == nil or human.layout == opponent.layout
+	if human == nil or opponent == nil
 		or Player_ObserveRelationship(human.player, opponent.player) ~= R_ENEMY then
 		print("LANE_WARS_SETUP_ERROR place one human and one AI on opposing teams")
 		return
@@ -407,6 +446,10 @@ function LaneWarsSolo_Start()
 		attackerGroup = EGroup_Create("lane_wars_last_attacker"),
 		boots = Modifier_Create(MAT_Entity, "speed_maximum_modifier", MUT_Multiplication, false, 1.12, nil),
 	}
+	SpawnBases()
+	if Game_GetLocalPlayer() == human.player then
+		Camera_FocusOnPosition(Site(human.layout.hero))
+	end
 	print("LANE_WARS_DRAFT_STARTED")
 	Rule_AddInterval(LaneWarsSolo_Tick, interval)
 	UpdateHUD()

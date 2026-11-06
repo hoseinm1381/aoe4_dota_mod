@@ -1,5 +1,6 @@
 -- Exercise SCAR decisions without assuming that the engine behaves like this fixture.
 local now, timer, network, winner, loser, missing
+local offset, focus = 0, nil
 local squads, buildings, cues, gold, logs, deathRules = {}, {}, {}, {}, {}, {}
 local nextCue, retiredGroups, clearedStarts = 0, 0, 0
 local corePrint = print
@@ -22,9 +23,15 @@ function World_GetPlayerCount() return #PLAYERS end
 function World_GetGameTime() return now end
 function World_GetHeightAt() return 0 end
 function World_Pos(x, y, z) return {x = x, y = y, z = z} end
+function World_GetWidth() return 144 end
+function World_GetLength() return 144 end
+function World_PosInBounds(position)
+	return math.abs(position.x - offset) <= 72 and math.abs(position.z - offset) <= 72
+end
 function World_DistancePointToPoint(a, b) return ((a.x - b.x)^2 + (a.z - b.z)^2)^0.5 end
 function Player_GetSlotIndex(player) return player end
-function Player_GetStartingPosition(player) return World_Pos(player == 1 and -54 or 54, 0, 0) end
+function Player_GetStartingPosition() error("Crafted map startup must use authored sites") end
+function Player_IsAlive(player) return player <= 2 end
 function Player_IsHuman(player) return player == 1 end
 function Player_ObserveRelationship(a, b) assert(a ~= b); return R_ENEMY end
 function Player_GetSquads() return {} end
@@ -87,6 +94,7 @@ function Modifier_ApplyToEntity(factor, entity, duration)
 	entity.speed = (entity.speed or 1) * factor
 end
 function Game_GetLocalPlayer() return 1 end
+function Camera_FocusOnPosition(position) focus = position end
 function LOC(text) return text end
 function Loc_Empty() return "" end
 function UI_CreateEventCueClickable(...)
@@ -139,7 +147,6 @@ local function kill(creep, attacker, notify)
 	deathRules[creep] = nil
 end
 
-assert(load(layout_source, "proving_ground.scar"))()
 assert(load(mode_source, "aoe4_dota_mod.scar"))()
 
 now, missing = 0, "tower"
@@ -151,8 +158,12 @@ missing = nil
 LaneWarsSolo_OnGameSetup()
 LaneWarsSolo_OnInit()
 LaneWarsSolo_Start()
+assert(saw("LANE_WARS_SETUP_ERROR Proving Ground map script was not loaded") and not timer)
+assert(load(layout_source, "proving_ground.scar"))()
 LaneWarsSolo_Start()
-assert(clearedStarts == 4 and #squads == 0)
+LaneWarsSolo_Start()
+assert(clearedStarts == 4 and #squads == 0 and #buildings == 4)
+assert(focus.x == -54 and focus.z == 0)
 network(2, "captain")
 assert(#squads == 0)
 click("Draft Shield Captain")
@@ -210,8 +221,9 @@ buildings[4].alive = false
 tick(17.5)
 assert(winner == 1 and loser == 2 and not timer and next(cues) == nil and retiredGroups == 3 and next(deathRules) == nil)
 
-squads, buildings, gold = {}, {}, {}
+squads, buildings, gold, offset = {}, {}, {}, 72
 LaneWarsSolo_Start()
+assert(#buildings == 4 and focus.x == 18 and focus.z == 72)
 tick(37.25)
 assert(#squads == 0)
 tick(37.5)
