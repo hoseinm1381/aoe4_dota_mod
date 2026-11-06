@@ -1,0 +1,14 @@
+{
+  "events": {
+    "captain_ready": {
+      "clips": ["audio/shield-captain-hold-the-crossing.wav"],
+      "volume_bus": "speech",
+      "gain": 0.85
+    },
+    "tower_impact": {
+      "clips": ["audio/tower-impact.wav"],
+      "volume_bus": "effects",
+      "gain": 0.75
+    }
+  }
+}

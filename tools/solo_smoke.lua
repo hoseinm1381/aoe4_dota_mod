@@ -1,18 +1,28 @@
 -- Exercise SCAR decisions without assuming that the engine behaves like this fixture.
 local now, timer, network, winner, loser, missing
 local offset, focus = 0, nil
+local lobbyHero, lobbyMedia, dialog, clockOrigin = "choose", false, nil, 0
 local squads, buildings, cues, gold, logs, deathRules = {}, {}, {}, {}, {}, {}
 local nextCue, retiredGroups, clearedStarts = 0, 0, 0
 local corePrint = print
+local audioCalls = {}
 
 PLAYERS = {{id = 1}, {id = 2}}
 RT_Gold, RT_Food, RT_Wood, RT_Stone = "gold", "food", "wood", "stone"
 R_ENEMY, ECV_Queue, ECV_Title = "enemy", 1, 2
 MAT_Entity, MUT_Multiplication, KPR_Lost, WR_CONQUEST = 1, 1, 1, 1
 GE_SquadKilled = "squad killed"
+DB_Button1, DB_Button2, DB_Close, DC_Default = 1, 2, 3, 4
 Garrison = {mods = {aoe4_dota_mod = {blueprints = {
-	sbps = {shield_captain = "captain"},
+	sbps = {shield_captain = "captain", bow_skirmisher = "skirmisher"},
 	ebps = {lane_tower = "tower", lane_stronghold = "stronghold"},
+}, options = {load = function() return {solo = {hero = lobbyHero, media = lobbyMedia}} end},
+audio = {
+	session = function() audioCalls[#audioCalls + 1] = "session" end,
+	bed = function(clip) assert(clip == "audio/crossing-watch-loop.wav"); audioCalls[#audioCalls + 1] = "bed" end,
+	event = function(kind) audioCalls[#audioCalls + 1] = kind end,
+	pulse = function() audioCalls[#audioCalls + 1] = "pulse" end,
+	stop = function() audioCalls[#audioCalls + 1] = "stop" end,
 }}}}
 
 function print(name, ...) logs[#logs + 1] = {name, ...} end
@@ -98,15 +108,18 @@ Misc_SetEntitySelectable = Misc_SetSquadSelectable
 function Cmd_AttackMove(group, destination) assert(#group == 1); group[1].destination = destination end
 function Modifier_Create(_, name, _, _, factor) assert(name == "speed_maximum_modifier"); return factor end
 function Modifier_ApplyToEntity(factor, entity, duration)
-	assert(duration == 0)
-	entity.speed = (entity.speed or 1) * factor
+	if duration == 0 then
+		entity.speed = (entity.speed or 1) * factor
+	else
+		assert(duration == 5 and factor == 1.35 and not entity.quickstep)
+		entity.quickstep = duration
+	end
 end
 function Game_GetLocalPlayer() return 1 end
 function Camera_FocusOnPosition(position) focus = position end
 function LOC(text) return text end
 function Loc_Empty() return "" end
-function UI_CreateEventCueClickable(...)
-	local callback = select(15, ...)
+local function AssertNamedCallback(callback)
 	local name
 	for key, value in pairs(_G) do
 		if value == callback and type(key) == "string" then
@@ -115,9 +128,26 @@ function UI_CreateEventCueClickable(...)
 		end
 	end
 	assert(type(callback) == "function" and name, "Can't use an unnamed function as a callback")
+end
+function UI_CreateEventCueClickable(...)
+	local callback = select(15, ...)
+	AssertNamedCallback(callback)
 	nextCue = nextCue + 1
 	cues[nextCue] = {title = select(5, ...), click = callback}
 	return nextCue
+end
+function UI_MessageBoxReset() assert(not dialog); dialog = {buttons = {}} end
+function UI_MessageBoxSetText(title) assert(title == "Choose your hero") end
+function UI_MessageBoxSetButton(button, title) dialog.buttons[button] = title end
+function UI_MessageBoxShow(kind, callback)
+	assert(kind == DC_Default)
+	AssertNamedCallback(callback)
+	dialog.callback = callback
+end
+function UI_MessageBoxHide(button)
+	local previous = assert(dialog)
+	dialog = nil
+	previous.callback(button)
 end
 function UI_ClearEventCueFromID(id) assert(cues[id]); cues[id] = nil end
 function Network_RegisterEvent(name) assert(_G[name]); network = _G[name] end
@@ -138,7 +168,7 @@ function World_KillPlayer(player) assert(loser == player) end
 function Core_OnGameOver() LaneWarsSolo_OnGameOver() end
 
 local function tick(time)
-	now = time
+	now = clockOrigin + time
 	assert(timer)()
 end
 
@@ -187,9 +217,16 @@ for _, building in ipairs(buildings) do
 end
 network(2, "captain")
 assert(#squads == 0)
-click("Draft Shield Captain")
+assert(dialog.buttons[DB_Button1] == "Shield Captain" and dialog.buttons[DB_Button2] == "Bow Skirmisher")
+tick(21)
+assert(#squads == 0 and dialog)
+UI_MessageBoxHide(DB_Close)
+tick(22)
+assert(#squads == 0 and dialog)
+UI_MessageBoxHide(DB_Button1)
+clockOrigin = now
 local hero, bot = squads[1], squads[2]
-assert(hero.blueprint == "captain" and bot.blueprint == "unit_archer_2_eng" and bot.destination and bot.selectable)
+assert(hero.blueprint == "captain" and bot.blueprint == "skirmisher" and bot.destination and bot.selectable)
 assert(buildings[2].cap == 1 and buildings[4].cap == 1)
 
 tick(4)
@@ -229,6 +266,11 @@ hero.health = 0.5
 network(1, "use_tonic")
 network(1, "use_tonic")
 assert(hero.health == 0.75)
+click("Second Wind | Restore health")
+assert(hero.health == 1)
+hero.health = 0.75
+network(1, "skill")
+assert(hero.health == 0.75)
 
 hero.alive = false
 tick(5)
@@ -246,13 +288,17 @@ tick(17.5)
 assert(winner == 1 and loser == 2 and not timer and next(cues) == nil and retiredGroups == 3 and next(deathRules) == nil)
 
 squads, buildings, gold, offset = {}, {}, {}, 72
+lobbyHero, lobbyMedia, clockOrigin = "bow", true, now
+LaneWarsSolo_OnGameSetup()
 LaneWarsSolo_Start()
-assert(#buildings == 4 and focus.x == 18 and focus.z == 72)
-tick(37.25)
-assert(#squads == 0)
-tick(37.5)
-assert(#squads == 2 and squads[1].blueprint == "captain")
+assert(#buildings == 4 and focus.x == 18 and focus.z == 72 and not dialog)
+assert(#squads == 2 and squads[1].blueprint == "skirmisher")
+assert(audioCalls[1] == "session" and audioCalls[2] == "bed")
+click("Quickstep | Move faster")
+network(1, "skill")
+assert(squads[1].entity.quickstep == 5)
 buildings[2].alive = false
-tick(38)
+tick(.25)
 assert(winner == 2 and loser == 1 and not timer and next(cues) == nil and retiredGroups == 6)
+assert(audioCalls[#audioCalls - 1] == "pulse" and audioCalls[#audioCalls] == "stop")
 corePrint("Solo SCAR smoke passed in mocked Lua 5.3")

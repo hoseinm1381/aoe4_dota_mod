@@ -3,3 +3,16 @@ ID,Pipeline,PipelineStage,Notes,TranslationNotes,Tags,Text
 2,,,,,,"aoe4_dota_mod, made with Garrison"
 3,,,,,,Lane Wars Solo
 4,,,,,,Single lane qualification fixture.
+5000,,,,,,Shield Captain
+5001,,,,,,Bow Skirmisher
+5002,,,,,,Open the hero selection dialog.
+5003,,,,,,Choose in match
+5004,,,,,,Melee hero with a self-heal.
+5005,,,,,,Ranged hero with a short sprint.
+5006,,,,,,Choose when the match begins or preselect a hero.
+5007,,,,,,An in-match choice waits for your input.
+5008,,,,,,Starting hero
+5009,,,,,,Play the solo audio preview.
+5010,,,,,,"Enable the Garrison voice, impact effect, and music loop."
+5011,,,,,,Custom voices and music
+5012,,,,,,Solo match

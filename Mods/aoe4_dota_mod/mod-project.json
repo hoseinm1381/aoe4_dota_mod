@@ -31,7 +31,15 @@
   "created_at_utc": "2026-11-06T10:31:20Z",
   "derived_blueprints": [
     {
-      "changes": [],
+      "changes": [
+        {
+          "field": "squad_ui_ext/race_list/race_data/info/screen_name",
+          "op": "set",
+          "value": {
+            "text": "Shield Captain"
+          }
+        }
+      ],
       "family": "sbps",
       "name": "shield_captain",
       "source": "sbps/races/english/unit_manatarms_2_eng"
@@ -59,6 +67,44 @@
       "family": "ebps",
       "name": "lane_tower",
       "source": "ebps/races/english/buildings/building_defense_keep_eng/building_defense_keep_eng"
+    },
+    {
+      "changes": [
+        {
+          "field": "health_ext/hitpoints",
+          "op": "set",
+          "value": "210"
+        }
+      ],
+      "family": "ebps",
+      "name": "shield_captain",
+      "source": "ebps/races/english/units/unit_manatarms_2_eng"
+    },
+    {
+      "changes": [
+        {
+          "field": "health_ext/hitpoints",
+          "op": "set",
+          "value": "145"
+        }
+      ],
+      "family": "ebps",
+      "name": "bow_skirmisher",
+      "source": "ebps/races/english/units/unit_archer_2_eng"
+    },
+    {
+      "changes": [
+        {
+          "field": "squad_ui_ext/race_list/race_data/info/screen_name",
+          "op": "set",
+          "value": {
+            "text": "Bow Skirmisher"
+          }
+        }
+      ],
+      "family": "sbps",
+      "name": "bow_skirmisher",
+      "source": "sbps/races/english/unit_archer_2_eng"
     }
   ],
   "description": "",
@@ -70,22 +116,84 @@
     "name": "Lane Wars Solo",
     "requested": true,
     "script_sha256": "cc7c1ef108cb51e1a938e160c0ff9e293d8fb67ef390e9b8b9d074b813ff4e4a",
+    "settings": {
+      "allow_start_locations": true,
+      "default_biome_pbgid": 0,
+      "dev_only": false,
+      "egroup_destroy_prefixes": [],
+      "game_mode_type": "",
+      "icon": "",
+      "image_selected": "",
+      "image_unselected": "",
+      "inventory_categories": [
+        "IIT_PlayerCosmetic"
+      ],
+      "max_teams": -1,
+      "mission_file": "",
+      "objective_unit_types": [],
+      "player_upgrades": [],
+      "precache": [],
+      "sections": [
+        {
+          "featured": true,
+          "key": "solo",
+          "name": "Solo match",
+          "options": [
+            {
+              "items": [
+                {
+                  "default": true,
+                  "key": "choose",
+                  "name": "Choose in match",
+                  "summary": "Open the hero selection dialog."
+                },
+                {
+                  "key": "captain",
+                  "name": "Shield Captain",
+                  "summary": "Melee hero with a self-heal."
+                },
+                {
+                  "key": "bow",
+                  "name": "Bow Skirmisher",
+                  "summary": "Ranged hero with a short sprint."
+                }
+              ],
+              "key": "hero",
+              "name": "Starting hero",
+              "summary": "Choose when the match begins or preselect a hero.",
+              "tooltip": "An in-match choice waits for your input.",
+              "type": "enumeration"
+            },
+            {
+              "default": false,
+              "key": "media",
+              "name": "Custom voices and music",
+              "summary": "Play the solo audio preview.",
+              "tooltip": "Enable the Garrison voice, impact effect, and music loop.",
+              "type": "boolean"
+            }
+          ]
+        }
+      ],
+      "starting_building_replacements": [],
+      "starting_condition": ""
+    },
     "template": "normal"
   },
   "key": "aoe4_dota_mod",
   "mod_id": "dfc349f3-9dea-41d0-abff-b860c173458e",
   "name": "aoe4_dota_mod",
   "release": {
-    "summary": "Complete starting structures and allow direct targeting of enemies.",
-    "version": "0.1.0-solo.7"
+    "summary": "Explicit hero selection, two hero abilities, and an optional custom audio preview.",
+    "version": "0.2.0-solo.1"
   },
   "runtime_modules": {
     "files": {
-      "aoe4_dota_mod/blueprints.scar": "8775f18710d78100d6177ffcdf8f01d6057cb12ad0dea2d950635844dbe4d74d",
+      "aoe4_dota_mod/blueprints.scar": "05afc78b0463d40ae33acbf22f8501753572c23955a0cb12f823a20623294658",
       "aoe4_dota_mod/garrison.scar": "8a0110b2b252778686f591fd10be619b09cbdc4705311b44c8a313eac8f7d377",
       "aoe4_dota_mod/live_reload.scar": "df1b5bc84fa4bd2292bad62d17321295123646e7431f9dfb91b8d4d08a13e78a",
       "aoe4_dota_mod/models.scar": "36e36a075be559675e651b27434e71d69e51f2b6f5accd0d6272e115d5cb7b83",
-      "aoe4_dota_mod/options.scar": "6197886064a261da3c7654f6212f6429e5e77cd041edd4debe3dcf5c98b4bb90",
+      "aoe4_dota_mod/options.scar": "ff42ef847adb27df5ea2478816d305be990049f442c9d4d4f91c8324c81a2352",
       "garrison/garrison.scar": "d52f13f4f3e77dd23b6ad12b708b3a10399337398936c7f3c14b378e3d6d5966",
       "garrison/modules/ai.scar": "2828c8369d19b9e8a860fdc9a5a381cda702df587e389d2f9b67851e134d3b46",
       "garrison/modules/audio.scar": "24ea3e624eb50b7038ce37563d51b5bb1c196719158618ae1c26f39c06e6c510",

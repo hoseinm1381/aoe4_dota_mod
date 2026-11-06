@@ -1,6 +1,6 @@
 # Proving Ground media sources
 
-These assets are for the small media probe after the stock-art solo match passes. Keep the initial solo package as the control.
+The tower source is here. The optional solo audio preview reads its masters from the [Garrison project audio folder](../../Mods/aoe4_dota_mod/project/source/audio).
 
 | Source | Purpose |
 |---|---|
@@ -11,4 +11,4 @@ These assets are for the small media probe after the stock-art solo match passes
 
 The command “Hold the crossing!” was generated offline with Qwen3-TTS-12Hz-1.7B-VoiceDesign, model revision `5ecdb67327fd37bb2e042aab12ff7391903235d3`, seed `261106`, and an original shield-captain voice description. The local model card identifies the model license as Apache-2.0. The clip uses a synthetic persona designed from text.
 
-The next probe needs a Garrison tower export and an in-game check against the native tower footprint. The hero mesh should use a supported stock rig and keep its existing combat motions. Put speech, effect, and music into their respective Garrison volume buses and test each through the packaged helper and player runtime.
+The tower still needs a Garrison export and an in-game fit check against the native footprint. The audio preview routes its speech, effect, and music through separate Garrison volume buses. In-game listening is part of the solo checklist.
