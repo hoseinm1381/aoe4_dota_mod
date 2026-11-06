@@ -1,0 +1,107 @@
+{
+  "assets": [],
+  "cooks": [],
+  "crafted_maps": [
+    {
+      "donor": "flat_480",
+      "generated": {
+        "project/source/scenarios/multiplayer/proving_ground/proving_ground.info": "3887093e6401534499392d202afebb887adbe7d0cd0b65ffe85f9f1dc6500c6d",
+        "project/source/scenarios/multiplayer/proving_ground/proving_ground.scar": "32d85c27d2edb06ff5a2fd79b7a4ffa6586f1f0781a532aae031e2b29c72d8c7",
+        "project/source/scenarios/multiplayer/proving_ground/proving_ground.scenario": "20e47ef41a613f2dff94bbe3fae5ed5f879cd9fa77fd175e5c0d382db6bc25d2"
+      },
+      "ground": {
+        "tile": ""
+      },
+      "name": "proving_ground",
+      "playable": 144.0,
+      "script": "gameplay/proving_ground.scar",
+      "starts": [
+        [
+          -54.0,
+          0.0
+        ],
+        [
+          54.0,
+          0.0
+        ]
+      ],
+      "title": "Proving Ground"
+    }
+  ],
+  "created_at_utc": "2026-11-06T10:31:20Z",
+  "derived_blueprints": [
+    {
+      "changes": [],
+      "family": "sbps",
+      "name": "shield_captain",
+      "source": "sbps/races/english/unit_manatarms_2_eng"
+    },
+    {
+      "changes": [
+        {
+          "field": "health_ext/hitpoints",
+          "op": "set",
+          "value": "1600"
+        }
+      ],
+      "family": "ebps",
+      "name": "lane_stronghold",
+      "source": "ebps/races/english/buildings/building_defense_keep_eng/building_defense_keep_eng"
+    },
+    {
+      "changes": [
+        {
+          "field": "health_ext/hitpoints",
+          "op": "set",
+          "value": "1100"
+        }
+      ],
+      "family": "ebps",
+      "name": "lane_tower",
+      "source": "ebps/races/english/buildings/building_defense_keep_eng/building_defense_keep_eng"
+    }
+  ],
+  "description": "",
+  "game_mode": {
+    "custom_script": true,
+    "description": "Single lane qualification fixture.",
+    "enabled": true,
+    "live_reload": false,
+    "name": "Lane Wars Solo",
+    "requested": true,
+    "script_sha256": "cc7c1ef108cb51e1a938e160c0ff9e293d8fb67ef390e9b8b9d074b813ff4e4a",
+    "template": "normal"
+  },
+  "key": "aoe4_dota_mod",
+  "mod_id": "dfc349f3-9dea-41d0-abff-b860c173458e",
+  "name": "aoe4_dota_mod",
+  "release": {
+    "summary": "Stock-art solo fixture with full-health lane structures.",
+    "version": "0.1.0-solo.3"
+  },
+  "runtime_modules": {
+    "files": {
+      "aoe4_dota_mod/blueprints.scar": "8775f18710d78100d6177ffcdf8f01d6057cb12ad0dea2d950635844dbe4d74d",
+      "aoe4_dota_mod/garrison.scar": "8a0110b2b252778686f591fd10be619b09cbdc4705311b44c8a313eac8f7d377",
+      "aoe4_dota_mod/live_reload.scar": "df1b5bc84fa4bd2292bad62d17321295123646e7431f9dfb91b8d4d08a13e78a",
+      "aoe4_dota_mod/models.scar": "36e36a075be559675e651b27434e71d69e51f2b6f5accd0d6272e115d5cb7b83",
+      "aoe4_dota_mod/options.scar": "6197886064a261da3c7654f6212f6429e5e77cd041edd4debe3dcf5c98b4bb90",
+      "garrison/garrison.scar": "d52f13f4f3e77dd23b6ad12b708b3a10399337398936c7f3c14b378e3d6d5966",
+      "garrison/modules/ai.scar": "2828c8369d19b9e8a860fdc9a5a381cda702df587e389d2f9b67851e134d3b46",
+      "garrison/modules/audio.scar": "24ea3e624eb50b7038ce37563d51b5bb1c196719158618ae1c26f39c06e6c510",
+      "garrison/modules/commands.scar": "fd78616a80865820acc3e36f146d3bcbf2d74939dbc1f0b43995ebddf9892984",
+      "garrison/modules/effects.scar": "84df9b31f103d96a778c0011163730853ae3bdaaf67dd94e662668fca7935119",
+      "garrison/modules/fonts.scar": "d6470402ce33b1a05acf3c51d830373ad8f0a198bc3561aec8b339e1f0903c20",
+      "garrison/modules/lights.scar": "fd1ca911b322ef5cb66fc057b3ef537c8ae76d0de526528d505a072903602723",
+      "garrison/modules/physics.scar": "c7ccf63086c20e19bb4093533a3a7c8eb44550c5f867c636767b09a3c0a12e49",
+      "garrison/modules/presentation.scar": "75d4cf1e6208d20159912d15a664964b1ea76085b8488148e5e2aac16a8e81c4",
+      "garrison/modules/ragdoll.scar": "2bf8ca6ff2603ab95151071b160d01274d3af0c46bf873238a641d6bd40b9d05",
+      "garrison/modules/scene.scar": "3e7fcac824fa7fa9cb8c3feb7ed8290c4c9eec28243ed9974a6b79827711220d",
+      "garrison/modules/surface_routes.scar": "57a79a905ea8502fc4910061495af69f3b63ac6035cec6fea05e50a9608a9575",
+      "garrison/modules/surfaces.scar": "3bb2e6d91f30d893b68c9f3fb83bfe3a5af0f15644e1a3144c44a3d4739b9a1e",
+      "garrison/modules/ui.scar": "f706d95b8f613fc59a85ede86ad5e918c41697b012bdd297dac42f914b21a573",
+      "garrison/modules/weather.scar": "199adcb5a16edb882e19240104f959eba4a7045f7f7ee1b8f0e42121c3cace5c"
+    }
+  },
+  "schema": "garrison.mod-project/v1"
+}

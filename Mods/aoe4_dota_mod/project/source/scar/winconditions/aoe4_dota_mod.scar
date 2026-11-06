@@ -1,0 +1,371 @@
+import("cardinal.scar")
+import("ScarUtil.scar")
+import("command.scar")
+import("network.scar")
+import("gameplay/event_cues.scar")
+import("aoe4_dota_mod/blueprints.scar")
+import("gameplay/proving_ground.scar")
+
+Core_RegisterModule("LaneWarsSolo")
+
+local blueprints
+local match
+local interval = 0.25
+local wavePeriod = 30
+local respawnDelay = 12
+local draftEvent = "LaneWarsSolo_OnAction"
+local levelThresholds = {0, 100, 250, 450, 700, 1000}
+
+local function Ground(x, z)
+	return World_Pos(x, World_GetHeightAt(x, z), z)
+end
+
+local function Site(coordinates)
+	return Ground(coordinates[1], coordinates[2])
+end
+
+local function SpawnSquad(blueprint, player, position, destination)
+	local squad = Squad_CreateAndSpawnToward(blueprint, player, 1, position, destination)
+	return {handle = squad, id = Squad_GetID(squad), position = position}
+end
+
+local function SpawnBuilding(blueprint, player, position)
+	local entity = Entity_Create(blueprint, player, position, true)
+	Entity_Spawn(entity)
+	return {handle = entity, id = Entity_GetID(entity)}
+end
+
+local function AliveSquad(unit)
+	return unit ~= nil and Squad_IsValid(unit.id) and Squad_IsAlive(unit.handle)
+end
+
+local function AliveBuilding(building)
+	return Entity_IsValid(building.id) and Entity_IsAlive(building.handle)
+end
+
+local function Order(unit, destination)
+	SGroup_Clear(match.orderGroup)
+	SGroup_Add(match.orderGroup, unit.handle)
+	Cmd_AttackMove(match.orderGroup, destination)
+	SGroup_Clear(match.orderGroup)
+end
+
+local function SpawnHero(side, opponent)
+	side.hero = SpawnSquad(blueprints.heroes[side.pick], side.player, Site(side.layout.hero), Site(opponent.layout.hero))
+	side.respawnAt = nil
+	if side.boots then
+		Modifier_ApplyToEntity(match.boots, Squad_GetFirstEntity(side.hero.handle), 0)
+	end
+	if not side.human then
+		Misc_SetSquadSelectable(side.hero.handle, false)
+		Order(side.hero, Site(opponent.layout.stronghold))
+	end
+end
+
+local function StartBattle(now)
+	match.phase = "battle"
+	match.nextWave = now + 4
+	match.nextIncome = now + 1
+	for index, side in ipairs(match.sides) do
+		side.tower = SpawnBuilding(blueprints.tower, side.player, Site(side.layout.tower))
+		side.stronghold = SpawnBuilding(blueprints.stronghold, side.player, Site(side.layout.stronghold))
+		Entity_SetInvulnerableMinCap(side.stronghold.handle, 1, -1)
+		Misc_SetEntitySelectable(side.tower.handle, false)
+		Misc_SetEntitySelectable(side.stronghold.handle, false)
+		Player_SetResource(side.player, RT_Gold, 0)
+		SpawnHero(side, match.sides[3 - index])
+	end
+	print("LANE_WARS_BATTLE_STARTED")
+end
+
+local function Draft(pick, now)
+	local human = match.human
+	human.pick = pick
+	match.opponent.pick = 3 - pick
+	StartBattle(now)
+end
+
+local function SpawnWave(side, opponent)
+	if #side.waves >= 3 then
+		return
+	end
+	local wave = {}
+	for index, offset in ipairs({-4.5, -1.5, 1.5, 4.5}) do
+		local blueprint = index == 4 and blueprints.ranged or blueprints.melee
+		local position = Ground(side.layout.wave[1], side.layout.wave[2] + offset)
+		local destination = Ground(opponent.layout.stronghold[1], offset)
+		local unit = SpawnSquad(blueprint, side.player, position, destination)
+		Misc_SetSquadSelectable(unit.handle, false)
+		Order(unit, destination)
+		wave[index] = unit
+	end
+	table.insert(side.waves, wave)
+end
+
+local function RewardCreep(creep, enemy)
+	if AliveSquad(enemy.hero) and World_DistancePointToPoint(Squad_GetPosition(enemy.hero.handle), creep.position) <= 22 then
+		enemy.xp = enemy.xp + 15
+		while levelThresholds[enemy.level + 1] and enemy.xp >= levelThresholds[enemy.level + 1] do
+			enemy.level = enemy.level + 1
+		end
+	end
+
+	-- Query the last entity attacker so a tower cannot inherit an earlier hero hit.
+	-- An unavailable or ambiguous source yields no bounty.
+	if enemy.hero == nil or not Squad_IsValid(creep.id) then
+		return
+	end
+	EGroup_Clear(match.attackerGroup)
+	Squad_GetLastEntityAttacker(creep.handle, match.attackerGroup)
+	if EGroup_Count(match.attackerGroup) == 1 then
+		local attacker = Entity_GetSquad(EGroup_GetEntityAt(match.attackerGroup, 1))
+		if attacker ~= nil and Squad_GetID(attacker) == enemy.hero.id then
+			Player_SetResource(enemy.player, RT_Gold, Player_GetResource(enemy.player, RT_Gold) + 30)
+			print("LANE_WARS_LAST_HIT", creep.id, enemy.hero.id)
+		end
+	end
+end
+
+local function UpdateWaves(side, enemy)
+	for waveIndex = #side.waves, 1, -1 do
+		local wave = side.waves[waveIndex]
+		for unitIndex = #wave, 1, -1 do
+			local creep = wave[unitIndex]
+			if AliveSquad(creep) then
+				creep.position = Squad_GetPosition(creep.handle)
+			else
+				RewardCreep(creep, enemy)
+				table.remove(wave, unitIndex)
+			end
+		end
+		if #wave == 0 then
+			table.remove(side.waves, waveIndex)
+		end
+	end
+end
+
+local function AtShop(side)
+	return AliveSquad(side.hero) and World_DistancePointToPoint(Squad_GetPosition(side.hero.handle), Site(side.layout.hero)) <= 12
+end
+
+function LaneWarsSolo_OnAction(sender, action)
+	if match == nil or sender ~= match.human.player then
+		return
+	end
+	local side = match.human
+	if match.phase == "draft" then
+		if action == "captain" or action == "bow" then
+			Draft(action == "captain" and 1 or 2, World_GetGameTime())
+		end
+		return
+	end
+	if match.phase ~= "battle" or not AliveSquad(side.hero) then
+		return
+	end
+	local gold = Player_GetResource(side.player, RT_Gold)
+	if action == "boots" and not side.boots and gold >= 75 and AtShop(side) then
+		Modifier_ApplyToEntity(match.boots, Squad_GetFirstEntity(side.hero.handle), 0)
+		side.boots = true
+		Player_SetResource(side.player, RT_Gold, gold - 75)
+	elseif action == "buy_tonic" and not side.tonic and gold >= 30 and AtShop(side) then
+		side.tonic = true
+		Player_SetResource(side.player, RT_Gold, gold - 30)
+	elseif action == "use_tonic" and side.tonic then
+		local health = Squad_GetHealthPercentage(side.hero.handle, false)
+		if health < 1 then
+			Squad_SetHealth(side.hero.handle, math.min(1, health + 0.25))
+			side.tonic = false
+		end
+	end
+end
+
+local function ClearCues()
+	for _, id in ipairs(match.cues) do
+		UI_ClearEventCueFromID(id)
+	end
+	match.cues = {}
+end
+
+local function Cue(title, callback)
+	local id = UI_CreateEventCueClickable(-1, 3600, 0, 0, LOC(title), Loc_Empty(),
+		"high_priority", "icons\\event_queue_high_priority_large", "", 255, 255, 255, 255,
+		ECV_Queue | ECV_Title, callback)
+	if id ~= nil then
+		table.insert(match.cues, id)
+	end
+end
+
+local function ActionCue(title, action)
+	Cue(title, function()
+		Network_CallEvent(draftEvent, action)
+	end)
+end
+
+local function UpdateHUD()
+	if Game_GetLocalPlayer() ~= match.human.player then
+		return
+	end
+	local side = match.human
+	local near = AtShop(side)
+	local available = Player_GetResource(side.player, RT_Gold)
+	local status = table.concat({match.phase, side.level, tostring(near), tostring(side.boots),
+		tostring(side.tonic), tostring(available >= 75), tostring(available >= 30), tostring(AliveSquad(side.hero))}, "/")
+	if status == match.hudStatus then
+		return
+	end
+	match.hudStatus = status
+	ClearCues()
+	if match.phase == "draft" then
+		ActionCue("Draft Shield Captain", "captain")
+		ActionCue("Draft Bow Skirmisher", "bow")
+		return
+	end
+	Cue("Hero level " .. side.level .. " of 6", function() end)
+	if near and not side.boots and available >= 75 then
+		ActionCue("Buy Marching Boots for 75 gold", "boots")
+	end
+	if near and not side.tonic and available >= 30 then
+		ActionCue("Buy a tonic for 30 gold", "buy_tonic")
+	elseif side.tonic and AliveSquad(side.hero) then
+		ActionCue("Drink tonic to recover 25% health", "use_tonic")
+	end
+end
+
+local function Finish(loser, winner)
+	match.phase = "over"
+	print("LANE_WARS_MATCH_FINISHED", Player_GetSlotIndex(winner.player))
+	Core_SetPlayerDefeated(loser.player, nil, WR_CONQUEST)
+	World_KillPlayer(loser.player, KPR_Lost)
+	Core_SetPlayerVictorious(winner.player, nil, WR_CONQUEST)
+	Core_OnGameOver()
+end
+
+function LaneWarsSolo_Tick()
+	local now = World_GetGameTime()
+	if match.phase == "draft" and now >= match.draftEndsAt then
+		Draft(1, now)
+	end
+	if match.phase == "battle" then
+		for index, side in ipairs(match.sides) do
+			local opponent = match.sides[3 - index]
+			if not AliveBuilding(side.stronghold) then
+				Finish(side, opponent)
+				return
+			end
+			if not side.exposed and not AliveBuilding(side.tower) then
+				side.exposed = true
+				Entity_SetInvulnerableMinCap(side.stronghold.handle, 0, -1)
+			end
+			UpdateWaves(side, opponent)
+			if not AliveSquad(side.hero) then
+				side.respawnAt = side.respawnAt or now + respawnDelay
+				if now >= side.respawnAt then
+					SpawnHero(side, opponent)
+				end
+			end
+			if now >= match.nextIncome then
+				Player_SetResource(side.player, RT_Gold, Player_GetResource(side.player, RT_Gold) + 2)
+			end
+			if now >= match.nextWave then
+				SpawnWave(side, opponent)
+			end
+		end
+		if now >= match.nextIncome then
+			match.nextIncome = now + 1
+		end
+		if now >= match.nextWave then
+			match.nextWave = now + wavePeriod
+		end
+	end
+	UpdateHUD()
+end
+
+function LaneWarsSolo_OnGameSetup()
+	local private = Garrison.mods.aoe4_dota_mod.blueprints
+	blueprints = {
+		heroes = {
+			BP_GetSquadBlueprint(private.sbps.shield_captain),
+			BP_GetSquadBlueprint("unit_archer_2_eng"),
+		},
+		melee = BP_GetSquadBlueprint("unit_spearman_2_eng"),
+		ranged = BP_GetSquadBlueprint("unit_archer_2_eng"),
+		tower = BP_GetEntityBlueprint(private.ebps.lane_tower),
+		stronghold = BP_GetEntityBlueprint(private.ebps.lane_stronghold),
+	}
+	for index = 1, World_GetPlayerCount() do
+		local player = World_GetPlayerAt(index)
+		for _, blueprint in ipairs({blueprints.heroes[1], blueprints.melee, blueprints.ranged}) do
+			Squad_Precache(blueprint, 0, player, "", "DynamicPrecaching", "")
+		end
+		Entity_Precache(blueprints.tower, 0, player, "", "DynamicPrecaching", "")
+		Entity_Precache(blueprints.stronghold, 0, player, "", "DynamicPrecaching", "")
+	end
+end
+
+function LaneWarsSolo_OnInit()
+	Network_RegisterEvent(draftEvent)
+end
+
+function LaneWarsSolo_Start()
+	if match ~= nil then
+		return
+	end
+	local human, opponent
+	for _, player in pairs(PLAYERS) do
+		local start = Player_GetStartingPosition(player.id)
+		if math.abs(math.abs(start.x) - 54) > 2 or math.abs(start.z) > 2 then
+			print("LANE_WARS_SETUP_ERROR select the Proving Ground crafted map")
+			return
+		end
+		local isHuman = Player_IsHuman(player.id)
+		local side = {player = player.id, human = isHuman, xp = 0, level = 1, waves = {},
+			layout = start.x < 0 and LaneWarsProvingGround.west or LaneWarsProvingGround.east}
+		if isHuman and human == nil then
+			human = side
+		elseif not isHuman and opponent == nil then
+			opponent = side
+		else
+			print("LANE_WARS_SETUP_ERROR expected exactly one human and one AI")
+			return
+		end
+	end
+	if human == nil or opponent == nil or human.layout == opponent.layout
+		or Player_ObserveRelationship(human.player, opponent.player) ~= R_ENEMY then
+		print("LANE_WARS_SETUP_ERROR place one human and one AI on opposing teams")
+		return
+	end
+	AI_Enable(opponent.player, false)
+	local startingEntities = EGroup_Create("lane_wars_stock_start")
+	for _, side in ipairs({human, opponent}) do
+		SGroup_DestroyAllSquads(Player_GetSquads(side.player))
+		EGroup_Clear(startingEntities)
+		Player_GetEntitiesEGroup(side.player, startingEntities)
+		EGroup_DestroyAllEntities(startingEntities)
+		Player_SetResource(side.player, RT_Food, 0)
+		Player_SetResource(side.player, RT_Wood, 0)
+		Player_SetResource(side.player, RT_Stone, 0)
+		Player_SetResource(side.player, RT_Gold, 0)
+	end
+	EGroup_Destroy(startingEntities)
+
+	match = {
+		human = human, opponent = opponent, sides = {human, opponent},
+		phase = "draft", draftEndsAt = World_GetGameTime() + 20, cues = {},
+		orderGroup = SGroup_Create("lane_wars_order"),
+		attackerGroup = EGroup_Create("lane_wars_last_attacker"),
+		boots = Modifier_Create(MAT_Entity, "speed_maximum_modifier", MUT_Multiplication, false, 1.12, nil),
+	}
+	print("LANE_WARS_DRAFT_STARTED")
+	Rule_AddInterval(LaneWarsSolo_Tick, interval)
+	UpdateHUD()
+end
+
+function LaneWarsSolo_OnGameOver()
+	if match ~= nil then
+		Rule_Remove(LaneWarsSolo_Tick)
+		ClearCues()
+		SGroup_Destroy(match.orderGroup)
+		EGroup_Destroy(match.attackerGroup)
+		match = nil
+	end
+end

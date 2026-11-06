@@ -1,0 +1,5 @@
+-- The crafted map publishes its coordinates. The game mode owns match startup.
+LaneWarsProvingGround = {
+	west = { hero = {-54, 0}, stronghold = {-64, 0}, tower = {-31, 0}, wave = {-48, 0} },
+	east = { hero = {54, 0}, stronghold = {64, 0}, tower = {31, 0}, wave = {48, 0} },
+}

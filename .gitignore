@@ -1,0 +1,9 @@
+.scratch/
+__pycache__/
+*.blend1
+
+# Recreated by the installed Garrison version during cook.
+/Mods/*/project/source/scar/garrison/
+/Mods/aoe4_dota_mod/project/source/scar/aoe4_dota_mod/
+/Mods/*/project/source/scenarios/multiplayer/proving_ground/
+/Mods/*/project/cache/
