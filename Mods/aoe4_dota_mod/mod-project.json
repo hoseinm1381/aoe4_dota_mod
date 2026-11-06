@@ -145,7 +145,7 @@
                   "default": true,
                   "key": "choose",
                   "name": "Choose in match",
-                  "summary": "Open the hero selection dialog."
+                  "summary": "Open hero selection at the start of the match."
                 },
                 {
                   "key": "captain",
@@ -171,6 +171,26 @@
               "summary": "Play the solo audio preview.",
               "tooltip": "Enable the Garrison voice, impact effect, and music loop.",
               "type": "boolean"
+            },
+            {
+              "items": [
+                {
+                  "default": true,
+                  "key": "styled",
+                  "name": "Styled",
+                  "summary": "Use the Lane Wars hero cards and match panel."
+                },
+                {
+                  "key": "compatibility",
+                  "name": "Compatibility",
+                  "summary": "Use the basic hero dialog and event cues."
+                }
+              ],
+              "key": "interface",
+              "name": "Interface",
+              "summary": "Choose the in-match interface.",
+              "tooltip": "Use Compatibility if the styled panels do not display.",
+              "type": "enumeration"
             }
           ]
         }
@@ -184,8 +204,8 @@
   "mod_id": "dfc349f3-9dea-41d0-abff-b860c173458e",
   "name": "aoe4_dota_mod",
   "release": {
-    "summary": "Explicit hero selection, two hero abilities, and an optional custom audio preview.",
-    "version": "0.2.0-solo.1"
+    "summary": "Styled hero selection and match HUD with wave and combat diagnostics.",
+    "version": "0.3.0-solo.1"
   },
   "runtime_modules": {
     "files": {
@@ -193,7 +213,7 @@
       "aoe4_dota_mod/garrison.scar": "8a0110b2b252778686f591fd10be619b09cbdc4705311b44c8a313eac8f7d377",
       "aoe4_dota_mod/live_reload.scar": "df1b5bc84fa4bd2292bad62d17321295123646e7431f9dfb91b8d4d08a13e78a",
       "aoe4_dota_mod/models.scar": "36e36a075be559675e651b27434e71d69e51f2b6f5accd0d6272e115d5cb7b83",
-      "aoe4_dota_mod/options.scar": "ff42ef847adb27df5ea2478816d305be990049f442c9d4d4f91c8324c81a2352",
+      "aoe4_dota_mod/options.scar": "e20e91d4c4b4a732b1673b1d7760bb9cbe2e23b408a1bcecefa1a08989dca0d3",
       "garrison/garrison.scar": "d52f13f4f3e77dd23b6ad12b708b3a10399337398936c7f3c14b378e3d6d5966",
       "garrison/modules/ai.scar": "2828c8369d19b9e8a860fdc9a5a381cda702df587e389d2f9b67851e134d3b46",
       "garrison/modules/audio.scar": "24ea3e624eb50b7038ce37563d51b5bb1c196719158618ae1c26f39c06e6c510",

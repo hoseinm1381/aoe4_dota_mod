@@ -1,0 +1,54 @@
+import("ui.scar")
+import("ui/lane_wars_views.scar")
+
+LaneWarsSoloUI = {}
+
+local names = {draft = "LaneWarsSoloDraft", battle = "LaneWarsSoloHUD"}
+local commandNames = {
+	draft = {pickCaptain = "LaneWarsSolo_PickCaptain", pickBow = "LaneWarsSolo_PickBow"},
+	battle = {useSkill = "LaneWarsSolo_UseSkill", buyBoots = "LaneWarsSolo_BuyBoots",
+		useOrBuyTonic = "LaneWarsSolo_TonicButton"},
+}
+
+function LaneWarsSoloUI.Clear(view)
+	if view ~= nil then
+		UI_Remove(names[view.phase])
+	end
+end
+
+function LaneWarsSoloUI.Show(view, phase, values)
+	if view == nil or view.phase ~= phase then
+		LaneWarsSoloUI.Clear(view)
+		local commands = {}
+		for key, name in pairs(commandNames[phase]) do
+			commands[key] = UI_CreateCommand(name)
+		end
+		view = {phase = phase, commands = commands}
+	end
+
+	local changed = view.values == nil
+	for key, value in pairs(values) do
+		if view.values == nil or view.values[key] ~= value then
+			changed = true
+		end
+	end
+	if changed then
+		local bindings = {}
+		for key, value in pairs(values) do
+			bindings[key] = value
+		end
+		for key, command in pairs(view.commands) do
+			bindings[key] = command
+		end
+		if view.values == nil then
+			UI_AddChild("ScarNotReplay", "XamlPresenter", names[phase], {
+				IsHitTestVisible = true, Xaml = LaneWarsSoloViews[phase], DataContext = UI_CreateDataContext(bindings),
+			})
+			print("LANE_WARS_XAML_ATTACHED", phase)
+		else
+			UI_SetDataContext(names[phase], bindings)
+		end
+		view.values = values
+	end
+	return view
+end

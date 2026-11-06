@@ -5,7 +5,7 @@ ID,Pipeline,PipelineStage,Notes,TranslationNotes,Tags,Text
 4,,,,,,Single lane qualification fixture.
 5000,,,,,,Shield Captain
 5001,,,,,,Bow Skirmisher
-5002,,,,,,Open the hero selection dialog.
+5002,,,,,,Open hero selection at the start of the match.
 5003,,,,,,Choose in match
 5004,,,,,,Melee hero with a self-heal.
 5005,,,,,,Ranged hero with a short sprint.
@@ -15,4 +15,11 @@ ID,Pipeline,PipelineStage,Notes,TranslationNotes,Tags,Text
 5009,,,,,,Play the solo audio preview.
 5010,,,,,,"Enable the Garrison voice, impact effect, and music loop."
 5011,,,,,,Custom voices and music
-5012,,,,,,Solo match
+5012,,,,,,Use the Lane Wars hero cards and match panel.
+5013,,,,,,Styled
+5014,,,,,,Use the basic hero dialog and event cues.
+5015,,,,,,Compatibility
+5016,,,,,,Choose the in-match interface.
+5017,,,,,,Use Compatibility if the styled panels do not display.
+5018,,,,,,Interface
+5019,,,,,,Solo match

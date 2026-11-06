@@ -5,6 +5,7 @@ import("network.scar")
 import("aoe4_dota_mod/garrison.scar")
 import("aoe4_dota_mod/blueprints.scar")
 import("aoe4_dota_mod/options.scar")
+import("ui/lane_wars_ui.scar")
 
 Core_RegisterModule("LaneWarsSolo")
 
@@ -87,25 +88,24 @@ local function AliveBuilding(building)
 	return Entity_IsValid(building.id) and Entity_IsAlive(building.handle)
 end
 
-local function Order(unit, destination)
-	SGroup_Clear(match.orderGroup)
-	SGroup_Add(match.orderGroup, unit.handle)
-	Cmd_AttackMove(match.orderGroup, destination)
-	SGroup_Clear(match.orderGroup)
-end
-
 local function SpawnHero(side, opponent)
+	if side.hero and side.hero.orderGroup then
+		SGroup_Destroy(side.hero.orderGroup)
+	end
 	side.hero = SpawnSquad(blueprints.heroes[side.pick], side.player, Site(side.layout.hero), Site(opponent.layout.hero))
+	side.hero.entity = Squad_GetFirstEntity(side.hero.handle)
 	side.respawnAt = nil
 	if side.boots then
-		Modifier_ApplyToEntity(match.boots, Squad_GetFirstEntity(side.hero.handle), 0)
+		Modifier_ApplyToEntity(match.boots, side.hero.entity, 0)
 	end
 	if side.human and match.audio and side.pick == 1 then
 		local site = side.layout.hero
 		audio.event("captain_ready", World_GetGameTime(), site[1], site[2])
 	end
 	if not side.human then
-		Order(side.hero, Site(opponent.layout.stronghold))
+		side.hero.orderGroup = SGroup_Create("lane_wars_bot_hero")
+		SGroup_Add(side.hero.orderGroup, side.hero.handle)
+		Cmd_AttackMove(side.hero.orderGroup, Site(opponent.layout.stronghold))
 	end
 	print("LANE_WARS_HERO_SPAWN", Player_GetSlotIndex(side.player), side.pick, side.hero.id)
 end
@@ -144,41 +144,42 @@ local function SpawnWave(side, opponent)
 	if #side.waves >= 3 then
 		return
 	end
-	local wave = {}
+	side.waveNumber = side.waveNumber + 1
+	local slot = Player_GetSlotIndex(side.player)
+	local destination = Site(opponent.layout.stronghold)
+	print("LANE_WARS_WAVE_BEGIN", slot, side.waveNumber)
+	local wave = {orderGroup = SGroup_Create(string.format("lane_wars_wave_%d_%d", slot, side.waveNumber))}
 	for index, offset in ipairs({-4.5, -1.5, 1.5, 4.5}) do
 		local blueprint = index == 4 and blueprints.ranged or blueprints.melee
 		local position = Ground(side.layout.wave[1], side.layout.wave[2] + offset)
-		local destination = Ground(opponent.layout.stronghold[1], offset)
 		local unit = SpawnSquad(blueprint, side.player, position, destination)
 		if side.human then
 			Misc_SetSquadSelectable(unit.handle, false)
 		end
 		match.creeps[unit.id] = unit
+		unit.opponent = opponent
+		unit.entityId = Entity_GetID(Squad_GetFirstEntity(unit.handle))
+		match.creepsByEntity[unit.entityId] = unit
 		Rule_AddSquadEvent(LaneWarsSolo_OnCreepKilled, unit.handle, GE_SquadKilled, {id = unit.id})
-		Order(unit, destination)
+		SGroup_Add(wave.orderGroup, unit.handle)
 		wave[index] = unit
 	end
 	table.insert(side.waves, wave)
-	if not side.loggedFirstWave then
-		side.loggedFirstWave = true
-		print("LANE_WARS_FIRST_WAVE", Player_GetSlotIndex(side.player), #wave)
-	end
+	print("LANE_WARS_WAVE_ORDER", slot, side.waveNumber)
+	Cmd_AttackMove(wave.orderGroup, destination)
+	print("LANE_WARS_WAVE_END", slot, side.waveNumber, #wave)
 end
 
-local function CaptureCreepDeath(creep)
-	if creep.deathCaptured or not Squad_IsValid(creep.id) then
+function LaneWarsSolo_OnCreepDamage(context)
+	if match == nil or match.phase ~= "battle" or context == nil or context.victim == nil or context.isRepairing then
 		return
 	end
-	creep.deathCaptured = true
-	-- Read the last entity attacker during the death event, before the squad is
-	-- discarded. A tower never inherits an earlier hero hit.
-	EGroup_Clear(match.attackerGroup)
-	Squad_GetLastEntityAttacker(creep.handle, match.attackerGroup)
-	if EGroup_Count(match.attackerGroup) == 1 then
-		local attacker = Entity_GetSquad(EGroup_GetEntityAt(match.attackerGroup, 1))
-		if attacker ~= nil then
-			creep.killerId = Squad_GetID(attacker)
-		end
+	local creep = match.creepsByEntity[Entity_GetID(context.victim)]
+	if creep ~= nil then
+		local hero = creep.opponent.hero
+		creep.damageTick = World_GetGameTicks()
+		-- Every damage event replaces the previous hit, including non-hero hits.
+		creep.killerId = (hero and context.attacker == hero.entity) and hero.id or nil
 	end
 end
 
@@ -188,7 +189,7 @@ function LaneWarsSolo_OnCreepKilled(context, data)
 	end
 	local creep = match.creeps[data.id]
 	if creep ~= nil and context.victim == creep.handle then
-		CaptureCreepDeath(creep)
+		creep.deathTick = World_GetGameTicks()
 	end
 end
 
@@ -201,22 +202,15 @@ local function RewardCreep(creep, enemy)
 		end
 	end
 
-	CaptureCreepDeath(creep)
-	if not creep.deathCaptured then
-		if not match.loggedMissingDeathHandle then
-			match.loggedMissingDeathHandle = true
-			print("LANE_WARS_LAST_HIT_DEATH_HANDLE_UNAVAILABLE", creep.id)
-		end
-		return
-	end
-	if enemy.hero ~= nil and creep.killerId == enemy.hero.id then
+	local killer = creep.deathTick ~= nil and creep.deathTick == creep.damageTick and creep.killerId or nil
+	if killer ~= nil then
 		Player_SetResource(enemy.player, RT_Gold, Player_GetResource(enemy.player, RT_Gold) + 30)
-		print("LANE_WARS_LAST_HIT", creep.id, enemy.hero.id)
+		print("LANE_WARS_LAST_HIT", creep.id, killer)
 	end
 	if enemy.human and match.attributionSamples < 12 then
 		match.attributionSamples = match.attributionSamples + 1
-		print(string.format("LANE_WARS_CREEP_RESULT victim=%d killer=%s hero=%s",
-			creep.id, tostring(creep.killerId), tostring(enemy.hero and enemy.hero.id)))
+		print(string.format("LANE_WARS_CREEP_RESULT victim=%d killer=%s damage_tick=%s death_tick=%s",
+			creep.id, tostring(killer), tostring(creep.damageTick), tostring(creep.deathTick)))
 	end
 end
 
@@ -230,10 +224,12 @@ local function UpdateWaves(side, enemy)
 			else
 				RewardCreep(creep, enemy)
 				match.creeps[creep.id] = nil
+				match.creepsByEntity[creep.entityId] = nil
 				table.remove(wave, unitIndex)
 			end
 		end
 		if #wave == 0 then
+			SGroup_Destroy(wave.orderGroup)
 			table.remove(side.waves, waveIndex)
 		end
 	end
@@ -251,7 +247,7 @@ function LaneWarsSolo_OnAction(sender, action)
 	if match.phase == "draft" then
 		local pick = lobbyPicks[action]
 		if pick then
-			Draft(pick, World_GetGameTime(), "dialog")
+			Draft(pick, World_GetGameTime(), match.compatibility and "dialog" or "xaml")
 		end
 		return
 	end
@@ -348,11 +344,63 @@ function LaneWarsSolo_UseTonic()
 	Network_CallEvent(draftEvent, "use_tonic")
 end
 
+function LaneWarsSolo_PickCaptain()
+	Network_CallEvent(draftEvent, "captain")
+end
+
+function LaneWarsSolo_PickBow()
+	Network_CallEvent(draftEvent, "bow")
+end
+
+function LaneWarsSolo_TonicButton()
+	if match ~= nil and match.phase == "battle" then
+		Network_CallEvent(draftEvent, match.human.tonic and "use_tonic" or "buy_tonic")
+	end
+end
+
 function LaneWarsSolo_LevelCue()
 end
 
-local function UpdateHUD()
-	if Game_GetLocalPlayer() ~= match.human.player then
+local function UpdateStyledHUD(now)
+	if match.phase == "draft" then
+		match.view = LaneWarsSoloUI.Show(match.view, "draft", {})
+		return
+	end
+	local side = match.human
+	local alive = AliveSquad(side.hero) == true
+	local health = alive and Squad_GetHealthPercentage(side.hero.handle, false) or 0
+	local gold = Player_GetResource(side.player, RT_Gold)
+	local near = AtShop(side)
+	local cooldown = math.max(0, math.ceil((side.skillReadyAt or 0) - now))
+	local skill = side.pick == 1 and "Second Wind" or "Quickstep"
+	local nextLevel = levelThresholds[side.level + 1]
+	local vitals = string.format("Respawn in %ds", math.max(0, math.ceil((side.respawnAt or now) - now)))
+	if alive then
+		local maxHealth = Squad_GetHealthMax(side.hero.handle)
+		vitals = string.format("%.0f / %.0f HP   |   %.0f gold", health * maxHealth, maxHealth, gold)
+	end
+	match.view = LaneWarsSoloUI.Show(match.view, "battle", {
+		hero = heroNames[side.pick],
+		vitals = vitals,
+		progress = string.format("Level %d of 6   |   %s", side.level,
+			nextLevel and string.format("%d / %d XP", side.xp, nextLevel) or "Max level"),
+		objective = match.opponent.exposed and "Destroy the enemy stronghold" or "Destroy the enemy lane tower",
+		skillLabel = cooldown > 0 and string.format("%s  ·  %ds", skill, cooldown) or skill,
+		canUseSkill = alive and cooldown == 0 and (side.pick == 2 or health < 1),
+		bootsLabel = side.boots and "Marching Boots equipped" or "Marching Boots  ·  75 gold",
+		canBuyBoots = near and not side.boots and gold >= 75,
+		tonicLabel = side.tonic and "Drink Healing Tonic" or "Healing Tonic  ·  30 gold",
+		canTonic = (side.tonic and alive and health < 1) or (not side.tonic and near and gold >= 30),
+		shopHint = near and "At the shop" or "Return to your spawn to buy gear.",
+	})
+end
+
+local function UpdateHUD(now)
+	if UI_IsReplay() or Game_GetLocalPlayer() ~= match.human.player then
+		return
+	end
+	if not match.compatibility then
+		UpdateStyledHUD(now)
 		return
 	end
 	local side = match.human
@@ -436,7 +484,7 @@ function LaneWarsSolo_Tick()
 			match.nextWave = now + wavePeriod
 		end
 	end
-	UpdateHUD()
+	UpdateHUD(now)
 end
 
 local function FindBlueprint(resolve, name)
@@ -492,7 +540,7 @@ function LaneWarsSolo_Start()
 	for _, player in pairs(PLAYERS) do
 		if Player_IsAlive(player.id) then
 			local isHuman = Player_IsHuman(player.id)
-			local side = {player = player.id, human = isHuman, xp = 0, level = 1, waves = {},
+			local side = {player = player.id, human = isHuman, xp = 0, level = 1, waves = {}, waveNumber = 0,
 				layout = isHuman and west or east}
 			if isHuman and human == nil then
 				human = side
@@ -526,9 +574,8 @@ function LaneWarsSolo_Start()
 	match = {
 		human = human, opponent = opponent, sides = {human, opponent},
 		phase = "draft", draftRetryAt = 0, cues = {}, creeps = {}, attributionSamples = 0,
+		creepsByEntity = {}, compatibility = lobby.interface == "compatibility",
 		audio = lobby.media == true and audio ~= nil,
-		orderGroup = SGroup_Create("lane_wars_order"),
-		attackerGroup = EGroup_Create("lane_wars_last_attacker"),
 		boots = Modifier_Create(MAT_Entity, "speed_maximum_modifier", MUT_Multiplication, false, 1.12, nil),
 		quickstep = Modifier_Create(MAT_Entity, "speed_maximum_modifier", MUT_Multiplication, false, 1.35, nil),
 	}
@@ -538,6 +585,7 @@ function LaneWarsSolo_Start()
 	end
 	print("LANE_WARS_DRAFT_STARTED")
 	Rule_AddInterval(LaneWarsSolo_Tick, interval)
+	Rule_AddGlobalEvent(LaneWarsSolo_OnCreepDamage, GE_DamageReceived)
 	if match.audio then
 		audio.session()
 		audio.bed("audio/crossing-watch-loop.wav", 0.32)
@@ -546,7 +594,7 @@ function LaneWarsSolo_Start()
 	if chosen then
 		Draft(chosen, World_GetGameTime(), "lobby")
 	end
-	UpdateHUD()
+	UpdateHUD(World_GetGameTime())
 end
 
 function LaneWarsSolo_OnGameOver()
@@ -560,20 +608,23 @@ function LaneWarsSolo_OnGameOver()
 			audio.stop()
 		end
 		Rule_Remove(LaneWarsSolo_Tick)
+		Rule_RemoveGlobalEvent(LaneWarsSolo_OnCreepDamage)
+		LaneWarsSoloUI.Clear(match.view)
 		ClearCues()
-		-- Killed squads lose their attached event rules. Retire surviving rules
-		-- explicitly before destroying the group used for attribution.
+		-- Killed squads lose their attached event rules. Retire surviving rules explicitly.
 		for _, side in ipairs(match.sides) do
+			if side.hero and side.hero.orderGroup then
+				SGroup_Destroy(side.hero.orderGroup)
+			end
 			for _, wave in ipairs(side.waves) do
 				for _, creep in ipairs(wave) do
 					if AliveSquad(creep) then
 						Rule_RemoveSquadEvent(LaneWarsSolo_OnCreepKilled, creep.handle)
 					end
 				end
+				SGroup_Destroy(wave.orderGroup)
 			end
 		end
-		SGroup_Destroy(match.orderGroup)
-		EGroup_Destroy(match.attackerGroup)
 		match = nil
 	end
 end
