@@ -16,7 +16,9 @@ Garrison = {mods = {aoe4_dota_mod = {blueprints = {
 }}}}
 
 function print(name, ...) logs[#logs + 1] = {name, ...} end
-function import() end
+function import(path)
+	assert(path:lower() ~= "gameplay/event_cues.scar", "Solo mode must not register stock EventCues")
+end
 function Core_RegisterModule(name) assert(name == "LaneWarsSolo") end
 function World_GetPlayerAt(index) return assert(PLAYERS[index]).id end
 function World_GetPlayerCount() return #PLAYERS end
@@ -98,8 +100,17 @@ function Camera_FocusOnPosition(position) focus = position end
 function LOC(text) return text end
 function Loc_Empty() return "" end
 function UI_CreateEventCueClickable(...)
+	local callback = select(15, ...)
+	local name
+	for key, value in pairs(_G) do
+		if value == callback and type(key) == "string" then
+			name = key
+			break
+		end
+	end
+	assert(type(callback) == "function" and name, "Can't use an unnamed function as a callback")
 	nextCue = nextCue + 1
-	cues[nextCue] = {title = select(5, ...), click = select(15, ...)}
+	cues[nextCue] = {title = select(5, ...), click = callback}
 	return nextCue
 end
 function UI_ClearEventCueFromID(id) assert(cues[id]); cues[id] = nil end

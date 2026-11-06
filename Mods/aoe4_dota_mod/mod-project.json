@@ -76,8 +76,8 @@
   "mod_id": "dfc349f3-9dea-41d0-abff-b860c173458e",
   "name": "aoe4_dota_mod",
   "release": {
-    "summary": "Use authored map sites and reveal the opening base during draft.",
-    "version": "0.1.0-solo.5"
+    "summary": "Use named UI callbacks and avoid duplicate stock event registration.",
+    "version": "0.1.0-solo.6"
   },
   "runtime_modules": {
     "files": {

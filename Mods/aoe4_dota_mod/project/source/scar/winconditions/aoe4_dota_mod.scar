@@ -2,7 +2,6 @@ import("cardinal.scar")
 import("ScarUtil.scar")
 import("command.scar")
 import("network.scar")
-import("gameplay/event_cues.scar")
 import("aoe4_dota_mod/blueprints.scar")
 
 Core_RegisterModule("LaneWarsSolo")
@@ -271,10 +270,28 @@ local function Cue(title, callback)
 	end
 end
 
-local function ActionCue(title, action)
-	Cue(title, function()
-		Network_CallEvent(draftEvent, action)
-	end)
+-- The engine looks up event-cue callbacks by their global names.
+function LaneWarsSolo_PickCaptain()
+	Network_CallEvent(draftEvent, "captain")
+end
+
+function LaneWarsSolo_PickBow()
+	Network_CallEvent(draftEvent, "bow")
+end
+
+function LaneWarsSolo_BuyBoots()
+	Network_CallEvent(draftEvent, "boots")
+end
+
+function LaneWarsSolo_BuyTonic()
+	Network_CallEvent(draftEvent, "buy_tonic")
+end
+
+function LaneWarsSolo_UseTonic()
+	Network_CallEvent(draftEvent, "use_tonic")
+end
+
+function LaneWarsSolo_LevelCue()
 end
 
 local function UpdateHUD()
@@ -292,18 +309,18 @@ local function UpdateHUD()
 	match.hudStatus = status
 	ClearCues()
 	if match.phase == "draft" then
-		ActionCue("Draft Shield Captain", "captain")
-		ActionCue("Draft Bow Skirmisher", "bow")
+		Cue("Draft Shield Captain", LaneWarsSolo_PickCaptain)
+		Cue("Draft Bow Skirmisher", LaneWarsSolo_PickBow)
 		return
 	end
-	Cue("Hero level " .. side.level .. " of 6", function() end)
+	Cue("Hero level " .. side.level .. " of 6", LaneWarsSolo_LevelCue)
 	if near and not side.boots and available >= 75 then
-		ActionCue("Buy Marching Boots for 75 gold", "boots")
+		Cue("Buy Marching Boots for 75 gold", LaneWarsSolo_BuyBoots)
 	end
 	if near and not side.tonic and available >= 30 then
-		ActionCue("Buy a tonic for 30 gold", "buy_tonic")
+		Cue("Buy a tonic for 30 gold", LaneWarsSolo_BuyTonic)
 	elseif side.tonic and AliveSquad(side.hero) then
-		ActionCue("Drink tonic to recover 25% health", "use_tonic")
+		Cue("Drink tonic to recover 25% health", LaneWarsSolo_UseTonic)
 	end
 end
 
