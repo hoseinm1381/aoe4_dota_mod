@@ -8,6 +8,8 @@ Proving Ground is the first stock-art solo fixture. It contains a one-lane Craft
 
 The project must pass a solo match before adding the custom-media probe to the fixture. The online qualification order is two humans on the one-lane map, then eight humans on the three-lane graybox. The full roster and production media follow those gates.
 
+The editable tower and original audio for the follow-up are under [media probe sources](authoring/media-probe).
+
 ## Build the solo ZIP
 
 Use Garrison 0.1.16 and the AoE4 Content Editor for the installed Windows Steam game. Set the paths below to the matching Garrison extension and Content Editor. Run these commands from the repository root in PowerShell with Python 3.10 or later.
