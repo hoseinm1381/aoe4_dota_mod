@@ -30,6 +30,10 @@ if ($LASTEXITCODE) { throw 'Bundle verification failed' }
 
 The Garrison recipe owns the map, derived squad, and 1,100-HP tower and 1,600-HP stronghold blueprints. Both buildings spawn at full health. The cook generates its scenario and runtime helper files from the installed toolchain. The repository tracks the authored map coordinates, game-mode SCAR, localization, and project configuration. Cook outputs and local tool caches are excluded from Git.
 
+## Check the solo rules offline
+
+Install `lupa==2.6` in your test Python environment and run `python tools/smoke_solo.py`. The smoke test runs the authored SCAR in Lua 5.3 with mock engine calls. It covers missing blueprints, draft and timeout, bounty attribution rules, duplicate purchase requests, respawn, victory and defeat, and cleanup. AoE4 still needs to establish whether its death handles and UI callbacks behave as the fixture expects.
+
 ## Run the first solo test
 
 1. Import and enable the freshly verified ZIP in Garrison. Launch through Garrison and open **Single Player → Skirmish**.
@@ -37,6 +41,6 @@ The Garrison recipe owns the map, derived squad, and 1,100-HP tower and 1,600-HP
 3. Choose the captain or bow skirmisher during the draft. On a second run, let the 20-second draft timer expire. Verify one hero spawns per side, no starting villagers remain, and the first waves advance and fight without player orders.
 4. Land a creep's killing blow and check the 30-gold bounty separately from the two-gold-per-second income. Let an allied creep or tower kill a creep after your hero hits it to check for false credit. Stay near a creep death and verify level progress.
 5. At your spawn, buy Marching Boots for 75 gold and a tonic for 30. Test the tonic while injured, die, and verify the hero respawns after about 12 seconds with its prior progress, gear, and any unused tonic.
-6. Attack the opposing stronghold before and after taking its tower. Finish a win and a loss, then start a fresh match and check that the draft, heroes, and waves start only once. Retain the game build, package hash, and fresh `warnings.log`, with any `LANE_WARS_` lines.
+6. Attack the opposing stronghold before and after taking its tower. Finish a win and a loss, then start a fresh match and check that the draft, heroes, and waves start only once. Retain the game build, package hash, and fresh `warnings.log`. The `LANE_WARS_` lines record picks, spawns, purchases, levels, last-hit credit, stronghold exposure, and the result. `LANE_WARS_LAST_HIT_DEATH_HANDLE_UNAVAILABLE` means a dead creep's handle disappeared before the script could inspect its attacker.
 
 The verifier checks the ZIP byte limit, manifest, CRC, declared SGA hashes, SGA integrity, and the required solo fixture members. Native gameplay, player input, and last-hit attribution require the solo test above.

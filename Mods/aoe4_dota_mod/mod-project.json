@@ -76,8 +76,8 @@
   "mod_id": "dfc349f3-9dea-41d0-abff-b860c173458e",
   "name": "aoe4_dota_mod",
   "release": {
-    "summary": "Stock-art solo fixture with full-health lane structures.",
-    "version": "0.1.0-solo.3"
+    "summary": "Solo fixture with death-event attribution and match diagnostics.",
+    "version": "0.1.0-solo.4"
   },
   "runtime_modules": {
     "files": {
